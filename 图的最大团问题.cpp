@@ -6,105 +6,91 @@ using namespace std;
 const int N = 6;//设置矩阵的大小
 
 vector<bool> is_choice(N);//记录是否将第i个点加入团中
-bool picks[N];//记录已经放入团中的顶点
+vector<int> picks(N);//记录已经放入团中的顶点
 int pick_sum;//记录已经放入团中的节点数
 int pick_max;//记录最优值
 int point_sum;//顶点数
 int c[N];//c[i]为前i个顶点构成的最大团数量
-vector<int> i_link;//记录和i相邻的顶点的集合
+vector<vector<int>> link(N);//link[i]表示编号小于i且与i相邻的顶点
 
-//往前找到与t顶点相邻的最近的顶点
-int tLink(int t,int a[][N])//j代表是从第j位往前找
-{
-	int flag = 1;
-	for (int i = t - 1; i >= 0; i--) {
-		if (a[t][i] && flag) {
-			i_link.push_back(i);
-			continue;
-		}
-		if (a[t][i]) {
-			i_link.push_back(i);
+//找到编号小于i且与i相邻的顶点,正序排列
+void flink(int a[][N]) {
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < i; j++) {
+			if (a[i][j])link[i].push_back(j);
 		}
 	}
-	return i_link.size() > 0 ? i_link[0] : -1;
 }
+
+//以j为起始点，寻找link[i]中与j相邻的顶点
+int tLink(int t, int j,int a[][N])
+{
+	for (int i = link[t].size()-pick_sum; i >= 0; i--) {
+		for (int k = t - 1; k >= 0; k--) {
+			//选中的点必须要和其他选中的点相连
+			if (is_choice[k] && a[k][link[t][i]] == 0)
+				return -1;
+		}
+		if (a[link[t][i]][j]) {
+			return link[t][i];
+		}
+	}
+	return -1;
+}
+
 void findCi(int a[][N]) {
 	for (int i = 1; i < N; i++) {
 		is_choice[i] = 1;
-		int j = tLink(i,a);
+		int n = link[i].size();
 		//与i没有相邻的，或者是与其相邻顶点数加1小于最大团数
-		if (j == -1 || i_link.size()+1 <= pick_max) {
+		if (n == 0 || n + 1 <= pick_max) {
 			c[i] = c[i - 1];
+			is_choice[i] = 0;
 			continue;
 		}
 		else {
-			is_choice[j] = 1;
-			pick_sum++;
-			if (pick_sum + c[j] <= pick_max) {
-				c[i] = c[i - 1];
-				break;
-			}
-			while (tLink(i, j, a) != -1) {
-				int k = tLink(i, j, a);
-				is_choice[k] = 1;
+			for (int j = n - 1; j >= 0; j--) {
+ 				is_choice[link[i][j]] = 1;
 				pick_sum++;
-				if (pick_sum + c[k] <= pick_max) {
+				if (pick_sum + c[link[i][j]] <= pick_max) {
 					c[i] = c[i - 1];
 					break;
 				}
-				else {
-					j = k;
+				int k = tLink(i, link[i][j], a);
+				while (k != -1) {
+					is_choice[k] = 1;
+					pick_sum++;
+					if (pick_sum + c[k] <= pick_max) {
+						c[i] = c[i - 1];
+						break;
+					}
+					k = tLink(i, k, a);
 				}
-			}
-			if (pick_sum > pick_max)//现在的路径大于最优值时才更新
-			{
-				for (int k = 0; k <= i; k++)
+				if (pick_sum > pick_max)//现在的路径大于最优值时才更新
 				{
-					picks[k] = is_choice[k];//记录最优值结点号
+					picks.clear();
+					picks.resize(N);
+					for (int k = 0; k <= i; k++)
+					{
+						picks[k] = is_choice[k];//记录最优值结点号
+					}
+					pick_max = pick_sum;//记录最优值
+					c[i] = c[i - 1] + 1;
+					break;
 				}
-				pick_max = pick_sum;//记录最优值
-				c[i] = c[i - 1] + 1;
+				//回溯
+				is_choice[link[i][j]] = 0;
+				pick_sum--;
 			}
-			is_choice.clear();
-			is_choice.resize(N);
-			pick_sum = 1;
 		}
+		is_choice.clear();
+		is_choice.resize(N);
+		pick_sum = 1;
 	}
 }
-//求解最大团问题
-//void max_corp(int t, int a[][N])
-//{
-//	if (pick_sum > pick_max)//现在的路径大于最优值时才更新
-//	{
-//		for (int i = 0; i < N; i++)
-//		{
-//			picks[i] = is_choice[i];//记录最优值结点号
-//		}
-//		pick_max = pick_sum;//记录最优值
-//		return;
-//	}
-//	if (tLink(t,t,a) == -1) {//t顶点与前面的顶点都不相邻，直接返回
-//		c[t] = c[t - 1];
-//		return;
-//	}
-//	else {
-//		int j = tLink(t,t, a);//j为与t相邻的最近的顶点
-//		is_choice[t] = 1;
-//		if (pick_sum + c[j] <= pick_max) {
-//			c[t] = c[t - 1];
-//			s.push_back(t);
-//			return;
-//		}
-//		else {
-//			is_choice[j] = 1;
-//			pick_sum++;
-//			max_corp(j, a);
-//		}
-//	}
-//}
 
 //打印最后的结果
-void Print(bool picks[N])
+void Print(vector<int> picks)
 {
 	for (int i = 0; i < point_sum; i++)
 	{
@@ -117,24 +103,29 @@ void Print(bool picks[N])
 int main()
 {
 	int Graph[N][N] = {//传入的图
-		{0,1,1,1,0,0},
-		{1,0,1,1,0,1},
-		{1,1,0,1,1,0},
-		{1,1,1,0,1,0},
-		{0,0,1,1,0,1},
-		{0,1,0,0,1,0} };
+		{0,1,0,1,0,0},
+		{1,0,1,1,1,1},
+		{0,1,0,1,1,1},
+		{1,1,1,0,0,0},
+		{0,1,1,0,0,1},
+		{0,1,1,0,1,0} };
 	pick_sum = 1;//记录已经放入团中的节点数
 	pick_max = 1;//记录最优值
 	point_sum = 6;//节点个数
 	c[0] = 1;
 	is_choice[0] = 1;
-	i_link = { 0,1,1,1,0,0 };
+	flink(Graph);
 	findCi(Graph);
 
 
 	cout << "最大团的结点个数为：" << pick_max << endl;
 	cout << "构成最大团的结点为：" << endl;
 	Print(picks);
+	cout << "c[i]:" << endl;
+	for (int i = 0; i < N; i++) {
+		cout << c[i] << " ";
+	}
+	cout << endl;
 
 	return 0;
 }
